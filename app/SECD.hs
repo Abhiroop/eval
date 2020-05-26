@@ -19,7 +19,7 @@ instance Show Exp where
   show (Lam c exp) = "λ " <> show c <> "." <> show exp
   show (App e1 e2) = "(" <> show e1 <> " " <> show e2 <> ")"
   show (Cond e1 e2 e3) =
-    "if " <> (show e1) <> "then " <> (show e2) <> "else " <> (show e3)
+    "if " <> (show e3) <> "then " <> (show e1) <> "else " <> (show e2)
   show At = "@"
 
 data WHNF = Int Int
