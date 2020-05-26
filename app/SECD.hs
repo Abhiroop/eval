@@ -75,3 +75,8 @@ evaluate (s, e, At:c, d) =
     _ -> panic "Control string has @ any other constructors cannot arise"
 evaluate (s, e, (App fun arg) : c, d) = evaluate (s, e, arg : fun : At : c, d)
 evaluate (s, e, (Cond th els pred):c, d) = evaluate (s, e, pred : (Cond th els pred) : At : c, d)
+
+
+-- Test
+-- Identity applied to Church Numeral zero
+foo = evaluate ([], [], [(App (Lam 'x' (Id 'x')) (Lam 'f' (Lam 'y' (Id 'y'))))], [])
