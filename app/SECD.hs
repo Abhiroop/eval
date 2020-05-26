@@ -33,13 +33,14 @@ evaluate (s, _, [], []) =
   case s of
     [] -> panic "No value in stack"
     _ -> head s
+evaluate ([], _, [], (s1,e1,c1):d1) = evaluate (s1, e1, c1, d1) -- this step will never occur
 evaluate (x:s, _, [], (s1,e1,c1):d1) = evaluate (x:s1, e1, c1, d1)
 evaluate (s, e, (Id x):c, d) = evaluate (lookup x e : s, e, c, d)
 evaluate (s, e, (Lam bv body):c, d) = evaluate ((Closure body bv e) : s, e, c, d)
 evaluate (s, e, At:c, d) =
   case s of
-    Closure body bv env : arg : s' -> evaluate ([], (bv, arg) : env, [body], (s', e, c) : d)
+    Closure body bv env : arg : s' ->
+      evaluate ([], (bv, arg) : env, [body], (s', e, c) : d)
     Prim f : arg : s' -> evaluate (f arg : s', e, c , d)
     _ -> panic "Control string has @ any other constructors cannot arise"
 evaluate (s, e, (App fun arg) : c, d) = evaluate (s, e, arg : fun : At : c, d)
-evaluate ([], _, [], d) = panic "undefined state"
