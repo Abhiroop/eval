@@ -41,5 +41,5 @@ evaluate (s, e, At:c, d) =
     Closure body bv env : arg : s' -> evaluate ([], (bv, arg) : env, [body], (s', e, c) : d)
     Prim f : arg : s' -> evaluate (f arg : s', e, c , d)
     _ -> panic "Control string has @ any other constructors cannot arise"
-evaluate (s, e, (App fun arg) : c, d) = evaluate (s, e, arg : fun : c, d)
+evaluate (s, e, (App fun arg) : c, d) = evaluate (s, e, arg : fun : At : c, d)
 evaluate ([], _, [], d) = panic "undefined state"
