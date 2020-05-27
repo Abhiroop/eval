@@ -7,11 +7,12 @@ import Prelude hiding (lookup)
 type Identifier = Char
 
 data Exp = Id Identifier
-         | Lam Char Exp
+         | Lam Identifier Exp
          | App Exp Exp
          | Cond  Exp   Exp   Exp
 --              then  else  predicate
          | At
+         | Label Identifier (Identifier,Exp)
          deriving (Eq)
 
 instance Show Exp where
@@ -21,6 +22,7 @@ instance Show Exp where
   show (Cond e1 e2 e3) =
     "if " <> (show e3) <> "then " <> (show e1) <> "else " <> (show e2)
   show At = "@"
+  show (Label _ (id,exp)) = show (Lam id exp)
 
 data WHNF = Int Int
           | Prim (WHNF -> WHNF)
@@ -32,7 +34,7 @@ instance Eq WHNF where
   TRUE == TRUE = True
   (Closure exp1 id1 env1) == (Closure exp2 id2 env2) =
     (exp1 == exp2) && (id1 == id2) && (env1 == env2)
-  x == y = False
+  _ == _ = False
 
 instance Show WHNF where
   show (Int i) = "(I " <> show i <> ")"
@@ -75,7 +77,9 @@ evaluate (s, e, At:c, d) =
     _ -> panic "Control string has @ any other constructors cannot arise"
 evaluate (s, e, (App fun arg) : c, d) = evaluate (s, e, arg : fun : At : c, d)
 evaluate (s, e, (Cond th els pred):c, d) = evaluate (s, e, pred : (Cond th els pred) : At : c, d)
-
+evaluate (s, e, (Label n (id,exp)):c, d) = evaluate (s, env', (Lam id exp):c, d)
+  where
+    env' = (n, (Closure exp id e)) : e
 
 -- Test
 -- Identity applied to Church Numeral zero
