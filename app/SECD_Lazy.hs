@@ -7,6 +7,8 @@ import Prelude hiding (lookup)
 import qualified Control.Monad.State.Lazy as S
 import qualified Data.Map.Strict as M
 
+import Debug.Trace
+
 type Identifier = Char
 
 data Exp = Id Identifier
@@ -86,22 +88,27 @@ freshPointer :: Evaluator String
 freshPointer = do
   i <- S.gets count
   S.modify $ \s -> s {count = 1 + i}
-  return $ "_" <> (show i)
+  return $ "p_" <> (show i)
 
 eval :: Exp -> WHNF
 eval e = (S.evalState (runEvaluator $ evaluate s)
-                     (EvaluatorState {heap = M.empty
-                                     , count = 0}))
+                      (EvaluatorState { heap = M.empty
+                                      , count = 0}))
          where
            s = ([], [], [e], [])
 
 evaluate :: State -> Evaluator WHNF
-evaluate (s, _, [], []) =
+evaluate (s, e, [], []) =
   case s of
     [] -> panic "No value in stack"
     _ -> case head s of
            WHNF whnf -> pure whnf
-           Pointer _ -> panic "Unevaluated thunk"
+           Pointer p -> do
+             h <- S.gets heap
+             let whnf = derefPointer p h
+             case whnf of
+               Suspension exp env' -> evaluate ([], env', [exp], (s, e, []) : [])
+               _ -> pure whnf
 evaluate ([], _, [], (s1,e1,c1):d1) = evaluate (s1, e1, c1, d1) -- this step will never occur
 evaluate (x:s, _, [], (s1,e1,c1):d1) = evaluate (x:s1, e1, c1, d1)
 evaluate (s, e, (Id x):c, d) = evaluate (lookup x e : s, e, c, d)
@@ -111,7 +118,18 @@ evaluate (s, e, At:c, d) =
   case s of
     WHNF (Closure body bv env) : arg : s' ->
       evaluate ([], (bv, arg) : env, [body], (s', e, c) : d)
-    WHNF (Prim f) : (WHNF arg) : s' -> evaluate (WHNF (f arg) : s', e, c , d) -- need to pattern match on arg
+    WHNF (Prim f) : arg : s' ->
+      case arg of
+        Pointer p -> do
+          h <- S.gets heap
+          let whnf = derefPointer p h
+          case whnf of
+            Suspension exp env' -> do
+              res <- evaluate ([], env', [exp], (s, e, c) : d)
+              S.modify $ \s -> s {heap = M.insert p res h}
+              pure res
+            whnf' -> evaluate (WHNF (f whnf') : s', e, c , d)
+        WHNF a -> evaluate (WHNF (f a) : s', e, c , d) -- (WHNF a) is an entity on the stack it can never be a suspension because suspensions are never loaded on the stack they stay within the heap
     _ -> panic "Control string has @ any other constructors cannot arise"
 evaluate (s, e, (App fun arg) : c, d) = do
   -- heap allocation begin
@@ -127,4 +145,4 @@ evaluate (s, e, (Label n (id,exp)):c, d) = evaluate (s, env', (Lam id exp):c, d)
 
 -- Test
 -- Identity applied to Church Numeral zero
-foo = evaluate ([], [], [(App (Lam 'x' (Id 'x')) (Lam 'f' (Lam 'y' (Id 'y'))))], [])
+foo = eval (App (Lam 'x' (Id 'x')) (Lam 'f' (Lam 'y' (Id 'y'))))
