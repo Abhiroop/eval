@@ -35,6 +35,9 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - eval
+    - containers
+    - mtl
+
 
 tests:
   eval-test:
@@ -46,3 +49,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - eval
+    - containers
+    - mtl
