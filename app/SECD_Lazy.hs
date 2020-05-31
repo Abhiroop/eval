@@ -15,7 +15,6 @@ data Exp = Id Identifier
          | Lam Identifier Exp
          | App Exp Exp
          | At
-         | Label Identifier (Identifier,Exp)
          deriving (Eq)
 
 instance Show Exp where
@@ -23,7 +22,6 @@ instance Show Exp where
   show (Lam c exp) = "λ " <> show c <> "." <> show exp
   show (App e1 e2) = "(" <> show e1 <> " " <> show e2 <> ")"
   show At = "@"
-  show (Label _ (id,exp)) = show (Lam id exp)
 
 data WHNF = Int Int
           | Prim (WHNF -> WHNF)
@@ -138,10 +136,6 @@ evaluate (s, e, (App fun arg) : c, d) = do
   S.modify $ \s -> s {heap = M.insert p (Suspension arg e) h}
   -- heap allocation end with pointer p
   evaluate (Pointer p : s, e, fun : At : c, d)
-evaluate (s, e, (Label n (id,exp)):c, d) = evaluate (s, env', (Lam id exp):c, d)
-  where
-    env' = (n, WHNF (Closure exp id e)) : e
-
 
 -- Test
 -- Identity applied to Church Numeral zero
