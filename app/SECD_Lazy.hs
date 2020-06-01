@@ -53,7 +53,7 @@ type Dump = [(Stack, Environment, Control)]
 
 type State = (Stack, Environment, Control, Dump)
 
-type Heap = M.Map Pointer WHNF
+type Heap = [(Pointer, WHNF)]
 type Pointer = String
 
 type Stack = [WHNF']
@@ -70,17 +70,17 @@ newtype Evaluator a =
     }
   deriving (Functor, Applicative, Monad, S.MonadState EvaluatorState)
 
-lookup :: Identifier -> Environment -> WHNF'
-lookup _ [] = panic "Id not in environment"
-lookup i1 ((i2,w):env')
-  | i1 == i2 = w
-  | otherwise = lookup i1 env'
+
+lookup :: Eq k => k -> [(k, v)] -> v
+lookup _ [] = panic "Key not found"
+lookup k ((key, value):rest)
+  | k == key = value
+  | otherwise = lookup k rest
+
 
 derefPointer :: Pointer -> Heap -> WHNF
-derefPointer p heap =
-  case M.lookup p heap of
-    Just whnf -> whnf
-    Nothing -> panic "Dangling pointer"
+derefPointer = lookup
+
 
 freshPointer :: Evaluator String
 freshPointer = do
@@ -90,7 +90,7 @@ freshPointer = do
 
 eval :: Exp -> WHNF
 eval e = (S.evalState (runEvaluator $ evaluate s)
-                      (EvaluatorState { heap = M.empty
+                      (EvaluatorState { heap  = []
                                       , count = 0}))
          where
            s = ([], [], [e], [])
@@ -124,7 +124,7 @@ evaluate (s, e, At:c, d) =
           case whnf of
             Suspension exp env' -> do
               res <- evaluate ([], env', [exp], (s, e, c) : d)
-              S.modify $ \s -> s {heap = M.insert p res h}
+              S.modify $ \s -> s {heap = (p, res) : h}
               pure res
             whnf' -> evaluate (WHNF (f whnf') : s', e, c , d)
         WHNF a -> evaluate (WHNF (f a) : s', e, c , d) -- (WHNF a) is an entity on the stack it can never be a suspension because suspensions are never loaded on the stack they stay within the heap
@@ -133,7 +133,7 @@ evaluate (s, e, (App fun arg) : c, d) = do
   -- heap allocation begin
   p <- freshPointer
   h <- S.gets heap
-  S.modify $ \s -> s {heap = M.insert p (Suspension arg e) h}
+  S.modify $ \s -> s {heap = (p, (Suspension arg e)) : h}
   -- heap allocation end with pointer p
   evaluate (Pointer p : s, e, fun : At : c, d)
 
