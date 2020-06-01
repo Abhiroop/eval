@@ -43,6 +43,10 @@ instance Show WHNF where
     "Γ " <> show env <> " ⊢ λ " <> show id <> "." <> show exp
   show (Suspension _ _) = "_"
 
+data WHNF' = WHNF WHNF
+           | Pointer Pointer
+           deriving (Show, Eq)
+
 type Environment = [(Identifier, WHNF')]
 type Control = [Exp]
 type Dump = [(Stack, Environment, Control)]
@@ -51,10 +55,6 @@ type State = (Stack, Environment, Control, Dump)
 
 type Heap = M.Map Pointer WHNF
 type Pointer = String
-
-data WHNF' = WHNF WHNF
-           | Pointer Pointer
-           deriving (Show, Eq)
 
 type Stack = [WHNF']
 
